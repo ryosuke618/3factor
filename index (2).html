@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3ファクターモデル計算ツール</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        label { display: block; margin: 10px 0 5px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; font-size: 16px; }
+        .results { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .input-table input { width: 90%; padding: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>3ファクターモデル計算ツール</h1>
+        <form id="factorForm">
+            <h2>入力データ</h2>
+            <table class="input-table">
+                <tr>
+                    <th>期間</th>
+                    <th>市場リターン (Rm)</th>
+                    <th>資産リターン (Ri)</th>
+                    <th>SMB</th>
+                    <th>HML</th>
+                    <th>誤差 (ε)</th>
+                </tr>
+                <tr>
+                    <td>期間1</td>
+                    <td><input type="number" step="0.01" id="rm1" required></td>
+                    <td><input type="number" step="0.01" id="ri1" required></td>
+                    <td><input type="number" step="0.01" id="smb1" required></td>
+                    <td><input type="number" step="0.01" id="hml1" required></td>
+                    <td><input type="number" step="0.01" id="epsilon1" required></td>
+                </tr>
+                <tr>
+                    <td>期間2</td>
+                    <td><input type="number" step="0.01" id="rm2" required></td>
+                    <td><input type="number" step="0.01" id="ri2" required></td>
+                    <td><input type="number" step="0.01" id="smb2" required></td>
+                    <td><input type="number" step="0.01" id="hml2" required></td>
+                    <td><input type="number" step="0.01" id="epsilon2" required></td>
+                </tr>
+                <tr>
+                    <td>期間3</td>
+                    <td><input type="number" step="0.01" id="rm3" required></td>
+                    <td><input type="number" step="0.01" id="ri3" required></td>
+                    <td><input type="number" step="0.01" id="smb3" required></td>
+                    <td><input type="number" step="0.01" id="hml3" required></td>
+                    <td><input type="number" step="0.01" id="epsilon3" required></td>
+                </tr>
+            </table>
+
+            <h2>無リスク金利</h2>
+            <label for="rf">無リスク金利 (Rf):</label>
+            <input type="number" step="0.01" id="rf" required>
+
+            <button type="button" onclick="calculate()">計算</button>
+        </form>
+        <div class="results" id="results"></div>
+    </div>
+    <script>
+        function calculate() {
+            const rm1 = parseFloat(document.getElementById('rm1').value);
+            const ri1 = parseFloat(document.getElementById('ri1').value);
+            const smb1 = parseFloat(document.getElementById('smb1').value);
+            const hml1 = parseFloat(document.getElementById('hml1').value);
+            const epsilon1 = parseFloat(document.getElementById('epsilon1').value);
+
+            const rm2 = parseFloat(document.getElementById('rm2').value);
+            const ri2 = parseFloat(document.getElementById('ri2').value);
+            const smb2 = parseFloat(document.getElementById('smb2').value);
+            const hml2 = parseFloat(document.getElementById('hml2').value);
+            const epsilon2 = parseFloat(document.getElementById('epsilon2').value);
+
+            const rm3 = parseFloat(document.getElementById('rm3').value);
+            const ri3 = parseFloat(document.getElementById('ri3').value);
+            const smb3 = parseFloat(document.getElementById('smb3').value);
+            const hml3 = parseFloat(document.getElementById('hml3').value);
+            const epsilon3 = parseFloat(document.getElementById('epsilon3').value);
+
+            const rf = parseFloat(document.getElementById('rf').value);
+
+            // 各期間の超過市場リターンと超過資産リターン
+            const excessMarketReturns = [
+                (rm1 - rf).toFixed(3),
+                (rm2 - rf).toFixed(3),
+                (rm3 - rf).toFixed(3)
+            ];
+
+            const excessAssetReturns = [
+                (ri1 - rf).toFixed(3),
+                (ri2 - rf).toFixed(3),
+                (ri3 - rf).toFixed(3)
+            ];
+
+            // 平均値を求める
+            const mean = (arr) => arr.reduce((a, b) => parseFloat(a) + parseFloat(b), 0) / arr.length;
+            const meanExcessMarketReturn = mean(excessMarketReturns).toFixed(3);
+            const meanExcessAssetReturn = mean(excessAssetReturns).toFixed(3);
+            const meanSMB = mean([smb1, smb2, smb3]).toFixed(3);
+            const meanHML = mean([hml1, hml2, hml3]).toFixed(3);
+
+            // 共分散を求める
+            const covariance = (arr1, arr2) => arr1.map((x, i) => (parseFloat(x) - mean(arr1)) * (parseFloat(arr2[i]) - mean(arr2)))
+                .reduce((a, b) => a + b, 0) / arr1.length;
+
+            // 分散を求める
+            const variance = (arr) => arr.map(x => (parseFloat(x) - mean(arr)) ** 2).reduce((a, b) => a + b, 0) / arr.length;
+
+            // 各共分散と分散の計算
+            const covExcessMarketReturns = covariance(excessMarketReturns, excessAssetReturns).toFixed(6);
+            const varExcessMarketReturns = variance(excessMarketReturns).toFixed(6);
+            const covSMB = covariance([smb1, smb2, smb3], excessAssetReturns).toFixed(6);
+            const varSMB = variance([smb1, smb2, smb3]).toFixed(6);
+            const covHML = covariance([hml1, hml2, hml3], excessAssetReturns).toFixed(6);
+            const varHML = variance([hml1, hml2, hml3]).toFixed(6);
+
+            // 回帰係数を計算する
+            const beta_i = (covExcessMarketReturns / varExcessMarketReturns).toFixed(3);
+            const si = (covSMB / varSMB).toFixed(3);
+            const hi = (covHML / varHML).toFixed(3);
+
+            // 期待リターン E(Ri) の計算
+            const expectedReturn = (parseFloat(rf) + parseFloat(beta_i) * parseFloat(meanExcessMarketReturn) +
+                                   parseFloat(si) * parseFloat(meanSMB) + parseFloat(hi) * parseFloat(meanHML) + (epsilon1 + epsilon2 + epsilon3) / 3).toFixed(3);
+
+            // 平均値と各期間のデータの表示
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h2>計算結果</h2>
+                <h3>各期間の超過リターン</h3>
+                <table>
+                    <tr>
+                        <th>期間</th>
+                        <th>超過市場リターン (Rm - Rf)</th>
+                       
+                        <th>超過資産リターン (Ri - Rf)</th>
+                    </tr>
+                    <tr>
+                        <td>期間1</td>
+                        <td>${excessMarketReturns[0]}</td>
+                        <td>${excessAssetReturns[0]}</td>
+                    </tr>
+                    <tr>
+                        <td>期間2</td>
+                        <td>${excessMarketReturns[1]}</td>
+                        <td>${excessAssetReturns[1]}</td>
+                    </tr>
+                    <tr>
+                        <td>期間3</td>
+                        <td>${excessMarketReturns[2]}</td>
+                        <td>${excessAssetReturns[2]}</td>
+                    </tr>
+                </table>
+                <h3>各期間の平均値とデータ</h3>
+                <table>
+                    <tr>
+                        <th></th>
+                        <th>期間1</th>
+                        <th>期間2</th>
+                        <th>期間3</th>
+                        <th>平均</th>
+                    </tr>
+                    <tr>
+                        <td>超過市場リターン</td>
+                        <td>${excessMarketReturns[0]}</td>
+                        <td>${excessMarketReturns[1]}</td>
+                        <td>${excessMarketReturns[2]}</td>
+                        <td>${meanExcessMarketReturn}</td>
+                    </tr>
+                    <tr>
+                        <td>超過資産リターン</td>
+                        <td>${excessAssetReturns[0]}</td>
+                        <td>${excessAssetReturns[1]}</td>
+                        <td>${excessAssetReturns[2]}</td>
+                        <td>${meanExcessAssetReturn}</td>
+                    </tr>
+                    <tr>
+                        <td>SMB</td>
+                        <td>${smb1}</td>
+                        <td>${smb2}</td>
+                        <td>${smb3}</td>
+                        <td>${meanSMB}</td>
+                    </tr>
+                    <tr>
+                        <td>HML</td>
+                        <td>${hml1}</td>
+                        <td>${hml2}</td>
+                        <td>${hml3}</td>
+                        <td>${meanHML}</td>
+                    </tr>
+                </table>
+                <h3>感度の計算</h3>
+                <p>共分散: cov(X, Y) = Σ((X_i - 平均X)(Y_i - 平均Y)) / n</p>
+                <p>分散: var(X) = Σ((X_i - 平均X)^2) / n</p>
+                <table>
+                    <tr>
+                        <th></th>
+                        <th>共分散</th>
+                        <th>分散</th>
+                        <th>感度</th>
+                    </tr>
+                    <tr>
+                        <td>βi</td>
+                        <td>${covExcessMarketReturns}</td>
+                        <td>${varExcessMarketReturns}</td>
+                        <td>${beta_i}</td>
+                    </tr>
+                    <tr>
+                        <td>si</td>
+                        <td>${covSMB}</td>
+                        <td>${varSMB}</td>
+                        <td>${si}</td>
+                    </tr>
+                    <tr>
+                        <td>hi</td>
+                        <td>${covHML}</td>
+                        <td>${varHML}</td>
+                        <td>${hi}</td>
+                    </tr>
+                </table>
+                <h3>共分散と分散の計算</h3>
+                <p>βi: 共分散 = Σ((X_i - 平均X)(Y_i - 平均Y)) / n = ((${excessMarketReturns[0]} - ${meanExcessMarketReturn}) * (${excessAssetReturns[0]} - ${meanExcessAssetReturn}) + (${excessMarketReturns[1]} - ${meanExcessMarketReturn}) * (${excessAssetReturns[1]} - ${meanExcessAssetReturn}) + (${excessMarketReturns[2]} - ${meanExcessMarketReturn}) * (${excessAssetReturns[2]} - ${meanExcessAssetReturn})) / 3 = ${covExcessMarketReturns}</p>
+                <p>分散 = Σ((X_i - 平均X)^2) / n = ((${excessMarketReturns[0]} - ${meanExcessMarketReturn})^2 + (${excessMarketReturns[1]} - ${meanExcessMarketReturn})^2 + (${excessMarketReturns[2]} - ${meanExcessMarketReturn})^2) / 3 = ${varExcessMarketReturns}</p>
+                <p>si: 共分散 = Σ((X_i - 平均X)(Y_i - 平均Y)) / n = ((${smb1} - ${meanSMB}) * (${excessAssetReturns[0]} - ${meanExcessAssetReturn}) + (${smb2} - ${meanSMB}) * (${excessAssetReturns[1]} - ${meanExcessAssetReturn}) + (${smb3} - ${meanSMB}) * (${excessAssetReturns[2]} - ${meanExcessAssetReturn})) / 3 = ${covSMB}</p>
+                <p>分散 = Σ((X_i - 平均X)^2) / n = ((${smb1} - ${meanSMB})^2 + (${smb2} - ${meanSMB})^2 + (${smb3} - ${meanSMB})^2) / 3 = ${varSMB}</p>
+                <p>hi: 共分散 = Σ((X_i - 平均X)(Y_i - 平均Y)) / n = ((${hml1} - ${meanHML}) * (${excessAssetReturns[0]} - ${meanExcessAssetReturn}) + (${hml2} - ${meanHML}) * (${excessAssetReturns[1]} - ${meanExcessAssetReturn}) + (${hml3} - ${meanHML}) * (${excessAssetReturns[2]} - ${meanExcessAssetReturn})) / 3 = ${covHML}</p>
+                <p>分散 = Σ((X_i - 平均X)^2) / n = ((${hml1} - ${meanHML})^2 + (${hml2} - ${meanHML})^2 + (${hml3} - ${meanHML})^2) / 3 = ${varHML}</p>
+                <h3>期待リターン E(Ri)</h3>
+                <p>E(Ri) = Rf + βi * 平均超過市場リターン + si * 平均SMB + hi * 平均HML + 平均誤差</p>
+                <p>E(Ri) = ${rf} + ${beta_i} * ${meanExcessMarketReturn} + ${si} * ${meanSMB} + ${hi} * ${meanHML} + ((${epsilon1} + ${epsilon2} + ${epsilon3}) / 3).toFixed(3)</p>
+                <p>結果: E(Ri) = ${expectedReturn}</p>
+                <p>結果: E(Ri) = ${(expectedReturn * 100).toFixed(2)}%</p>
+            `;
+        }
+    </script>
+</body>
+</html>
